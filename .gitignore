@@ -1,0 +1,4 @@
+tmp/*
+env.json
+build.sh
+bot
