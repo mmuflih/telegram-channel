@@ -16,8 +16,13 @@ import (
 	"github.com/mmuflih/envgo/conf"
 )
 
-func sendTelegramMessage(token, chatID, message string) error {
+func sendTelegramMessage(token, chatID, message string, parseMode *string) error {
 	client := resty.New()
+
+	if parseMode == nil {
+		pm := "Markdown"
+		parseMode = &pm
+	}
 
 	telegramAPI := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
 
@@ -25,7 +30,7 @@ func sendTelegramMessage(token, chatID, message string) error {
 		SetQueryParams(map[string]string{
 			"chat_id":    chatID,
 			"text":       message,
-			"parse_mode": "Markdown",
+			"parse_mode": *parseMode,
 		}).
 		Post(telegramAPI)
 
@@ -35,13 +40,13 @@ func sendTelegramMessage(token, chatID, message string) error {
 	return nil
 }
 
-func sendMessage(token, chType, chatID string, message string) {
+func sendMessage(token, chType, chatID string, message string, parseMode *string) {
 	channelPrefix := "@"
 	if chType == "private" {
 		channelPrefix = "-"
 	}
 	fmt.Println(chType)
-	err := sendTelegramMessage(token, channelPrefix+chatID, message)
+	err := sendTelegramMessage(token, channelPrefix+chatID, message, parseMode)
 	if err != nil {
 		fmt.Printf("Error sending message: %v", err)
 	}
@@ -74,7 +79,7 @@ func main() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		go sendMessage(token, chType, channel, body.Message)
+		go sendMessage(token, chType, channel, body.Message, body.ParseMode)
 		c.JSON(200, gin.H{
 			"status": "oke",
 		})
@@ -83,7 +88,13 @@ func main() {
 		channel := c.Param("channel")
 		chType := c.Param("type")
 		message := c.Query("message")
-		go sendMessage(token, chType, channel, message)
+		pm := c.Query("parse_mode")
+		var parseMode *string
+		if pm != "" {
+			parseMode = &pm
+		}
+
+		go sendMessage(token, chType, channel, message, parseMode)
 		c.JSON(200, gin.H{
 			"message": message,
 		})
@@ -97,5 +108,6 @@ func main() {
 }
 
 type Body struct {
-	Message string `json:"message"`
+	Message   string  `json:"message"`
+	ParseMode *string `json:"parse_mode"`
 }
